@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Edit, Plus, Trash } from 'lucide-react'
 
+import instance from '@/api/axiosConfig'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +38,8 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 import { SubmitHandler, useForm } from 'react-hook-form'
@@ -48,6 +51,12 @@ type TFormInput = {
   note: string
 }
 
+type TData = {
+  id: string
+  note: string
+  createdAt: string
+}
+
 const formSchema = z.object({
   note: z.string().min(2, {
     message: 'Note must be at least 2 characters.'
@@ -57,6 +66,7 @@ const formSchema = z.object({
 const Home = ({ className, ...props }: CardProps) => {
   const [isOpen, setOpen] = useState(false)
   const [isEdit, setEdit] = useState(false)
+  const [dataAPI, setDataAPI] = useState<TData[]>([])
 
   const form = useForm<TFormInput>({
     resolver: zodResolver(formSchema),
@@ -65,10 +75,39 @@ const Home = ({ className, ...props }: CardProps) => {
     }
   })
 
-  const onSubmit: SubmitHandler<TFormInput> = (data) => {
-    console.log(data)
+  const onSubmit: SubmitHandler<TFormInput> = async (data) => {
+    try {
+      await instance.post('/todos', {
+        note: data.note,
+        createAt: new Date()
+      })
+      toast({
+        title: 'Success',
+        description: 'Successfully created todo'
+      })
+    } catch (error) {
+      console.error('Error creating user:', error)
+      toast({
+        title: 'Error',
+        description: 'Something wrong when created todo'
+      })
+    }
+
     setOpen(false)
   }
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const { data } = await instance.get<TData[]>('/todos')
+        setDataAPI(data)
+      } catch (error) {
+        console.error('Error fetching users:', error)
+      }
+    }
+
+    fetchUsers()
+  }, [])
 
   useEffect(() => {
     if (isEdit) {
@@ -83,45 +122,54 @@ const Home = ({ className, ...props }: CardProps) => {
         <Card className={cn(className)} {...props}>
           <CardHeader>
             <CardTitle>Todo List</CardTitle>
-            <CardDescription>You have 3 unread messages.</CardDescription>
+            <CardDescription>You have {dataAPI.length} tasks</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="flex items-center justify-between space-x-4 rounded-md border p-4">
-              <p className="font-medium leading-none">Push Notifications</p>
-              <div className="flex gap-2">
-                <Edit
-                  className="cursor-pointer"
-                  onClick={() => {
-                    setEdit(true)
-                    setOpen(true)
-                  }}
-                />
+          <ScrollArea className="h-[70vh]">
+            <CardContent className="grid gap-4">
+              {dataAPI.map((item) => {
+                return (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between space-x-4 rounded-md border p-4"
+                  >
+                    <p className="font-medium leading-none">{item.note}</p>
+                    <div className="flex gap-2">
+                      <Edit
+                        className="cursor-pointer"
+                        onClick={() => {
+                          setEdit(true)
+                          setOpen(true)
+                        }}
+                      />
 
-                <AlertDialog>
-                  <AlertDialogTrigger>
-                    <Trash color="red" />
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        Do you want to delete?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently
-                        delete your todo task.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction className="bg-destructive">
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
-          </CardContent>
+                      <AlertDialog>
+                        <AlertDialogTrigger>
+                          <Trash color="red" />
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Do you want to delete?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will
+                              permanently delete your todo task.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction className="bg-destructive">
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                )
+              })}
+            </CardContent>
+          </ScrollArea>
           <CardFooter>
             <Button
               type="button"
