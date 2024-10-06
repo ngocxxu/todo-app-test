@@ -42,7 +42,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SubmitHandler, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -84,6 +84,7 @@ const Home = ({ className, ...props }: CardProps) => {
   const [isOpen, setOpen] = useState(false)
   const [isEdit, setEdit] = useState(false)
   const [dataAPI, setDataAPI] = useState<TData[]>([])
+  const [tabValue, setTabValue] = useState('all')
 
   const form = useForm<TFormInput>({
     resolver: zodResolver(formSchema),
@@ -113,6 +114,12 @@ const Home = ({ className, ...props }: CardProps) => {
 
     setOpen(false)
   }
+
+  const onFilter = useMemo(() => {
+    return dataAPI.filter((f) =>
+      tabValue === 'all' ? true : f.status === tabValue
+    )
+  }, [tabValue, dataAPI])
 
   const fetchTodos = useCallback(async () => {
     try {
@@ -149,9 +156,14 @@ const Home = ({ className, ...props }: CardProps) => {
       <Card className={cn(className)} {...props}>
         <CardHeader>
           <CardTitle>Todo List</CardTitle>
-          <CardDescription>You have {dataAPI.length} tasks</CardDescription>
+          <CardDescription>You have {onFilter.length} tasks</CardDescription>
         </CardHeader>
-        <Tabs defaultValue="all" className="w-full">
+        <Tabs
+          defaultValue="all"
+          className="w-full"
+          onValueChange={setTabValue}
+          value={tabValue}
+        >
           <TabsList>
             {tabs.map((tab) => (
               <TabsTrigger key={tab.value} value={tab.value}>
@@ -164,7 +176,7 @@ const Home = ({ className, ...props }: CardProps) => {
             <TabsContent key={tab.value} value={tab.value}>
               <ScrollArea className="h-[70vh]">
                 <CardContent className="grid gap-4">
-                  {dataAPI.map((item) => {
+                  {onFilter.map((item) => {
                     return (
                       <div
                         key={item.id}
