@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { useCallback, useEffect, useState } from 'react'
@@ -55,7 +56,23 @@ type TData = {
   id: string
   note: string
   createdAt: string
+  status: string
 }
+
+const tabs = [
+  {
+    value: 'all',
+    label: 'All'
+  },
+  {
+    value: 'completed',
+    label: 'Completed'
+  },
+  {
+    value: 'incomplete',
+    label: 'Incomplete'
+  }
+]
 
 const formSchema = z.object({
   note: z.string().min(2, {
@@ -101,10 +118,15 @@ const Home = ({ className, ...props }: CardProps) => {
     try {
       const { data } = await instance.get<TData[]>('/todos')
 
-      const sortedTodos = data.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
+      const sortedTodos = data
+        .map((item) => ({
+          ...item,
+          status: item.status === 'male' ? 'completed' : 'incomplete'
+        }))
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
       setDataAPI(sortedTodos)
     } catch (error) {
       console.error('Error fetching users:', error)
@@ -129,52 +151,67 @@ const Home = ({ className, ...props }: CardProps) => {
           <CardTitle>Todo List</CardTitle>
           <CardDescription>You have {dataAPI.length} tasks</CardDescription>
         </CardHeader>
-        <ScrollArea className="h-[70vh]">
-          <CardContent className="grid gap-4">
-            {dataAPI.map((item) => {
-              return (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between space-x-4 rounded-md border p-4"
-                >
-                  <p className="font-medium leading-none">{item.note}</p>
-                  <div className="flex gap-2">
-                    <Edit
-                      className="cursor-pointer"
-                      onClick={() => {
-                        setEdit(true)
-                        setOpen(true)
-                      }}
-                    />
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList>
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value}>
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-                    <AlertDialog>
-                      <AlertDialogTrigger>
-                        <Trash color="red" />
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            Do you want to delete?
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently
-                            delete your todo task.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction className="bg-destructive">
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              )
-            })}
-          </CardContent>
-        </ScrollArea>
+          {tabs.map((tab) => (
+            <TabsContent key={tab.value} value={tab.value}>
+              <ScrollArea className="h-[70vh]">
+                <CardContent className="grid gap-4">
+                  {dataAPI.map((item) => {
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between space-x-4 rounded-md border p-4"
+                      >
+                        <p className="font-medium leading-none">{item.note}</p>
+                        <div className="flex gap-2">
+                          <Edit
+                            className="cursor-pointer"
+                            onClick={() => {
+                              setEdit(true)
+                              setOpen(true)
+                            }}
+                          />
+
+                          <AlertDialog>
+                            <AlertDialogTrigger>
+                              <Trash color="red" />
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Do you want to delete?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will
+                                  permanently delete your todo task.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction className="bg-destructive">
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </CardContent>
+              </ScrollArea>
+            </TabsContent>
+          ))}
+        </Tabs>
+
         <CardFooter>
           <Button
             type="button"
@@ -210,7 +247,7 @@ const Home = ({ className, ...props }: CardProps) => {
                 />
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter className='mt-4'>
+            <DialogFooter className="mt-4">
               <Button onClick={() => setOpen(false)} variant="outline">
                 Cancel
               </Button>
