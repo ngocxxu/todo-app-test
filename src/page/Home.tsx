@@ -41,7 +41,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { SubmitHandler, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -79,8 +79,9 @@ const Home = ({ className, ...props }: CardProps) => {
     try {
       await instance.post('/todos', {
         note: data.note,
-        createAt: new Date()
+        createdAt: new Date()
       })
+      fetchTodos()
       toast({
         title: 'Success',
         description: 'Successfully created todo'
@@ -96,18 +97,23 @@ const Home = ({ className, ...props }: CardProps) => {
     setOpen(false)
   }
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const { data } = await instance.get<TData[]>('/todos')
-        setDataAPI(data)
-      } catch (error) {
-        console.error('Error fetching users:', error)
-      }
-    }
+  const fetchTodos = useCallback(async () => {
+    try {
+      const { data } = await instance.get<TData[]>('/todos')
 
-    fetchUsers()
+      const sortedTodos = data.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      setDataAPI(sortedTodos)
+    } catch (error) {
+      console.error('Error fetching users:', error)
+    }
   }, [])
+
+  useEffect(() => {
+    fetchTodos()
+  }, [fetchTodos])
 
   useEffect(() => {
     if (isEdit) {
@@ -118,75 +124,75 @@ const Home = ({ className, ...props }: CardProps) => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <Card className={cn(className)} {...props}>
-          <CardHeader>
-            <CardTitle>Todo List</CardTitle>
-            <CardDescription>You have {dataAPI.length} tasks</CardDescription>
-          </CardHeader>
-          <ScrollArea className="h-[70vh]">
-            <CardContent className="grid gap-4">
-              {dataAPI.map((item) => {
-                return (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between space-x-4 rounded-md border p-4"
-                  >
-                    <p className="font-medium leading-none">{item.note}</p>
-                    <div className="flex gap-2">
-                      <Edit
-                        className="cursor-pointer"
-                        onClick={() => {
-                          setEdit(true)
-                          setOpen(true)
-                        }}
-                      />
+      <Card className={cn(className)} {...props}>
+        <CardHeader>
+          <CardTitle>Todo List</CardTitle>
+          <CardDescription>You have {dataAPI.length} tasks</CardDescription>
+        </CardHeader>
+        <ScrollArea className="h-[70vh]">
+          <CardContent className="grid gap-4">
+            {dataAPI.map((item) => {
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between space-x-4 rounded-md border p-4"
+                >
+                  <p className="font-medium leading-none">{item.note}</p>
+                  <div className="flex gap-2">
+                    <Edit
+                      className="cursor-pointer"
+                      onClick={() => {
+                        setEdit(true)
+                        setOpen(true)
+                      }}
+                    />
 
-                      <AlertDialog>
-                        <AlertDialogTrigger>
-                          <Trash color="red" />
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Do you want to delete?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This action cannot be undone. This will
-                              permanently delete your todo task.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction className="bg-destructive">
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger>
+                        <Trash color="red" />
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Do you want to delete?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently
+                            delete your todo task.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction className="bg-destructive">
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
-                )
-              })}
-            </CardContent>
-          </ScrollArea>
-          <CardFooter>
-            <Button
-              type="button"
-              onClick={() => {
-                setEdit(false)
-                setOpen(true)
-              }}
-              className="w-full"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Task
-            </Button>
-          </CardFooter>
-        </Card>
+                </div>
+              )
+            })}
+          </CardContent>
+        </ScrollArea>
+        <CardFooter>
+          <Button
+            type="button"
+            onClick={() => {
+              setEdit(false)
+              setOpen(true)
+            }}
+            className="w-full"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Task
+          </Button>
+        </CardFooter>
+      </Card>
 
-        <Dialog onOpenChange={setOpen} open={isOpen}>
-          <DialogContent>
+      <Dialog onOpenChange={setOpen} open={isOpen}>
+        <DialogContent>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
             <DialogHeader>
               <DialogTitle>{isEdit ? 'Update' : 'Create'}</DialogTitle>
               <DialogDescription>
@@ -204,15 +210,15 @@ const Home = ({ className, ...props }: CardProps) => {
                 />
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter>
+            <DialogFooter className='mt-4'>
               <Button onClick={() => setOpen(false)} variant="outline">
                 Cancel
               </Button>
               <Button type="submit">{isEdit ? 'Update' : 'Create'}</Button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </form>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Form>
   )
 }
