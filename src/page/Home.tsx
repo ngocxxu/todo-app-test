@@ -1,7 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Edit, Plus, Trash } from 'lucide-react'
+import { Plus, Trash } from 'lucide-react'
 
 import instance from '@/api/axiosConfig'
+import { createTodo, deleteTodo, updateTodoStatus } from '@/api/toDoService'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,7 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -35,13 +37,14 @@ import {
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { CheckedState } from '@radix-ui/react-checkbox'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SubmitHandler, useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -50,6 +53,7 @@ type CardProps = React.ComponentProps<typeof Card>
 
 type TFormInput = {
   note: string
+  status: string
 }
 
 type TData = {
@@ -82,38 +86,16 @@ const formSchema = z.object({
 
 const Home = ({ className, ...props }: CardProps) => {
   const [isOpen, setOpen] = useState(false)
-  const [isEdit, setEdit] = useState(false)
   const [dataAPI, setDataAPI] = useState<TData[]>([])
   const [tabValue, setTabValue] = useState('all')
 
   const form = useForm<TFormInput>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      note: ''
+      note: '',
+      status: 'completed'
     }
   })
-
-  const onSubmit: SubmitHandler<TFormInput> = async (data) => {
-    try {
-      await instance.post('/todos', {
-        note: data.note,
-        createdAt: new Date()
-      })
-      fetchTodos()
-      toast({
-        title: 'Success',
-        description: 'Successfully created todo'
-      })
-    } catch (error) {
-      console.error('Error creating user:', error)
-      toast({
-        title: 'Error',
-        description: 'Something wrong when created todo'
-      })
-    }
-
-    setOpen(false)
-  }
 
   const onFilter = useMemo(() => {
     return dataAPI.filter((f) =>
@@ -140,16 +122,26 @@ const Home = ({ className, ...props }: CardProps) => {
     }
   }, [])
 
+  const onSubmit: SubmitHandler<TFormInput> = async (data) => {
+    await createTodo({ note: data.note, createdAt: new Date() })
+    fetchTodos()
+    setOpen(false)
+  }
+
+  const onUpdateStatus = async (checked: CheckedState, obj: TData) => {
+    const newStatus = checked ? 'male' : 'female'
+    await updateTodoStatus(obj.id, newStatus)
+    fetchTodos()
+  }
+
+  const onDelete = async (id: string) => {
+    await deleteTodo(id)
+    fetchTodos()
+  }
+
   useEffect(() => {
     fetchTodos()
   }, [fetchTodos])
-
-  useEffect(() => {
-    if (isEdit) {
-      form.reset((prev) => ({ ...prev }))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEdit])
 
   return (
     <Form {...form}>
@@ -182,39 +174,53 @@ const Home = ({ className, ...props }: CardProps) => {
                         key={item.id}
                         className="flex items-center justify-between space-x-4 rounded-md border p-4"
                       >
-                        <p className="font-medium leading-none">{item.note}</p>
-                        <div className="flex gap-2">
-                          <Edit
-                            className="cursor-pointer"
-                            onClick={() => {
-                              setEdit(true)
-                              setOpen(true)
-                            }}
-                          />
+                        <FormField
+                          control={form.control}
+                          name="status"
+                          render={({ field }) => (
+                            <div className="flex items-center space-x-4">
+                              <FormItem>
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value === item.status}
+                                    onCheckedChange={(checked) =>
+                                      onUpdateStatus(checked, item)
+                                    }
+                                  />
+                                </FormControl>
+                                <FormLabel className="ml-2 font-medium leading-none">
+                                  {item.note}
+                                </FormLabel>
+                              </FormItem>
+                            </div>
+                          )}
+                        />
 
-                          <AlertDialog>
-                            <AlertDialogTrigger>
-                              <Trash color="red" />
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Do you want to delete?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This action cannot be undone. This will
-                                  permanently delete your todo task.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction className="bg-destructive">
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger>
+                            <Trash color="red" />
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Do you want to delete?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will
+                                permanently delete your todo task.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive"
+                                onClick={() => onDelete(item.id)}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     )
                   })}
@@ -228,7 +234,6 @@ const Home = ({ className, ...props }: CardProps) => {
           <Button
             type="button"
             onClick={() => {
-              setEdit(false)
               setOpen(true)
             }}
             className="w-full"
@@ -243,7 +248,7 @@ const Home = ({ className, ...props }: CardProps) => {
         <DialogContent>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <DialogHeader>
-              <DialogTitle>{isEdit ? 'Update' : 'Create'}</DialogTitle>
+              <DialogTitle>Create</DialogTitle>
               <DialogDescription>
                 <FormField
                   control={form.control}
@@ -260,10 +265,16 @@ const Home = ({ className, ...props }: CardProps) => {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="mt-4">
-              <Button onClick={() => setOpen(false)} variant="outline">
+              <Button
+                type="button"
+                onClick={() => {
+                  setOpen(false)
+                }}
+                variant="outline"
+              >
                 Cancel
               </Button>
-              <Button type="submit">{isEdit ? 'Update' : 'Create'}</Button>
+              <Button type="submit">Create</Button>
             </DialogFooter>
           </form>
         </DialogContent>
