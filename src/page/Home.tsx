@@ -43,40 +43,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { tabs } from '@/constants'
 import { cn } from '@/lib/utils'
+import { CardProps, TData, TFormInput } from '@/types'
 import { CheckedState } from '@radix-ui/react-checkbox'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SubmitHandler, useForm } from 'react-hook-form'
 import { z } from 'zod'
-
-type CardProps = React.ComponentProps<typeof Card>
-
-type TFormInput = {
-  note: string
-  status: string
-}
-
-type TData = {
-  id: string
-  note: string
-  createdAt: string
-  status: string
-}
-
-const tabs = [
-  {
-    value: 'all',
-    label: 'All'
-  },
-  {
-    value: 'completed',
-    label: 'Completed'
-  },
-  {
-    value: 'incomplete',
-    label: 'Incomplete'
-  }
-]
 
 const formSchema = z.object({
   note: z.string().min(2, {
